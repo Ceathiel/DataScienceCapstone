@@ -1,19 +1,21 @@
-## Word Prediction Application
+### Word Prediction Application
 
 This application was developed for the Capstone Project for the Data Science Specialization in Coursera by Johns Hopkins University
 
 You will find the shiny application code in the ff. Github link:
 https://github.com/Ceathiel/DataScienceCapstone/tree/master/WordPrediction
 
-### How the word prediction is done
+#### How the word prediction is done
 
-The prediction is done using stupid backoff algorithm on Trigram, Bigram and Unigram models.
+The prediction is done using stupid backoff algorithm on Trigram, Bigram and Unigram models. 
 
 When a word is entered in the text field, the application attempts to find suitable match from the Trigram Model using the computed MLE for each Trigram. If no trigram match is found, it backs off to find a match in the Bigram Model, again using MLE.
 
-Finally, if not Trigram or Bigram match is found, it looks at Unigrams and provides a recommendation based on the computed Kneser-Ney probability for the unigram
+Finally, if no Trigram or Bigram match is found, it looks at Unigrams and provides a recommendation based on the computed Kneser-Ney probability for the unigram
 
-### Files in the repository:
+In the interest of speed, the N-gram models have been pre-processed and resulting computations are saved into cSV files which the application reads in during initialization.
+
+#### Files in the repository:
 
 1. ui.R - user-interface for word prediction application
 2. server.R - server logic for this word prediction application. It also contains the `predictNextWord` function that generates the next word predictions.
