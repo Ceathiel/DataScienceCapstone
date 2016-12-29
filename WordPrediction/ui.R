@@ -3,8 +3,9 @@
 #
 
 library(shiny)
+library(markdown)
 
-shinyUI(fluidPage(
+shinyUI(fluidPage(theme="bootstrap.css",
   
   titlePanel("Word Prediction Application"),
   
@@ -29,11 +30,12 @@ shinyUI(fluidPage(
     mainPanel(
         tabsetPanel(type = "tabs", 
                     tabPanel("Word Predictions",
+                             br(),
                              textInput('words', label="Input Phrase", width = "100%"),
                              verbatimTextOutput('predictedsentence')),
                     tabPanel("Application Details",
-                             h4("Application Code:"),
-                             p())
+                             br(),
+                             includeMarkdown("README.md"))
         )
     )
   )
