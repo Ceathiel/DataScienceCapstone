@@ -1,12 +1,8 @@
 #
-# This is the server logic of a Shiny web application. You can run the 
-# application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-# 
-#    http://shiny.rstudio.com/
+# This is the server logic of a Word Prediction Application
 #
 
+#Initializa libraries
 library(shiny)
 library(quanteda)
 library(data.table)
@@ -18,23 +14,24 @@ BigramProb <- fread("BigramProb.csv", header = T, sep = ",")
 TrigramProb <- fread("TrigramProb.csv", header = T, sep = ",")
 
 
-#Create function for predicting next words
+#Create function for predicting next words using ngram model
 predictNextWord <- function(sentence, choices=NULL) {
     
     #Clean up input sentence similar to how training set was cleaned up
+    #Remove numbers, punctuation, symbols
     sentenceToken <- tokenize(tolower(sentence), removeNumbers = TRUE, removePunct = TRUE, 
                               removeSeparators = TRUE, removeSymbols = TRUE, removeTwitter = TRUE, 
                               removeHyphens = TRUE, what="fasterword", simplify = TRUE)
     
-    #Initialize empty data frame
+    #Initialize empty data frame to hold the next word predictions
     match <- data.frame(Next=character())
     
-    #Check if entered text is valid
+    #Check if entered text is valid and display a message
     if (length(sentenceToken) == 0) {
-        return("Please enter a phrase with valid characters from the alphabet in the textbox.")
+        return("App is ready. Please enter a phrase with valid characters from the alphabet in the textbox.")
     }
     
-    #Attempt to match to a Trigram if sentence has 2 or more words
+    #Attempt to match to a Trigram if sentence has 2 or more words using MLE Probability
     if (length(sentenceToken) >= 2) {
         lastBigram <- paste0(sentenceToken[length(sentenceToken)-1], " ", sentenceToken[length(sentenceToken)])
         match <- filter(TrigramProb, lastBigram==Bigram) %>% 
@@ -42,7 +39,7 @@ predictNextWord <- function(sentence, choices=NULL) {
             top_n(5, MLEProb)
     }
     
-    #If sentence has only 1 word or Trigram match has failed, attempt to match to a Bigram using Kneser-Ney Probability
+    #If sentence has only 1 word or Trigram match has failed, attempt to match to a Bigram using MLE Probability
     if (length(sentenceToken) == 1 | nrow(match) == 0){
         lastWord <- sentenceToken[length(sentenceToken)]
         match <- filter(BigramProb, lastWord==Prev) %>% 
@@ -59,7 +56,7 @@ predictNextWord <- function(sentence, choices=NULL) {
     
 }
 
-#Shiny Server functions
+#Update the UI with the output of next word prediction
 shinyServer(function(input, output) {
     output$predictedsentence <- renderText({ 
         text <- predictNextWord(input$words) 
