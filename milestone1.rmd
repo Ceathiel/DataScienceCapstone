@@ -1,0 +1,224 @@
+---
+title: "Data Science Capstone: Milestone Report 1"
+author: "Rhea Lucas"
+date: "November 25, 2016"
+output:
+  html_document:
+    fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Summary
+
+This milestone report covers what inital analysis have been accomplished so far for the Coursera Data Science Capstone project covering Natural Language Processing
+
+## Exploratory Data Analysis
+
+The first task needed for this project was to access and explore the dataset containing the text which we will use as basis for creating a language model. The dataset contains text from blogs, twitter and news.
+
+The table below shows information the file size, total number of lines, length of the longest line, total number of words and average number of words per line in each of the files. 
+
+We can see here that we have the most number of lines coming from twitter text, but with shorter length per line, which is expected given the nature posts from twitter. On the other hand, we have the smallest sample from blogs, but they contain longer text per line. Overall, all sample text have more than 3 million words in each one.
+
+```{r loadandread, cache=TRUE}
+library(stringr)
+fileNames <- list.files("final/en_US", full.names=TRUE)
+totalLines <- NULL
+longestLine <- NULL
+size <- NULL
+totalWords <- NULL
+aveWords <- NULL
+for (i in 1:length(fileNames)) {
+    conn <- file(fileNames[i], open = "rb")
+    file <- readLines(conn, skipNul = TRUE)
+    totalLines <- c(totalLines, length(file))
+    longestLine <- c(longestLine, max(nchar(file)))
+    size <- c(size, round(file.size(fileNames[i])/1024/1024, 2))
+    totalWords <- c(totalWords, sum(str_count(file, '\\w+')))
+    aveWords <- c(aveWords, round(mean(str_count(file, '\\w+')), 2))
+    close(conn)
+}
+rm(file)
+filestats <- as.data.frame(cbind(fileNames, size, totalLines, longestLine, totalWords, aveWords))
+
+library(knitr)
+kable(filestats, col.names = c("File Names", "Size in MB", "Total Lines", "Longest Line", "Total Words", "Average Words per Line"))
+```
+
+To look at additional characteristics of the data, particularly the occurences of words in the text, exploration using text mining packages was also done. I used one of the recommended packages `quanteda` for producing a document feature matrix to look at word frequencies. 
+
+From previous attempts, creating a dfm for the whole document takes up a lot of processing time, especially when we start looking at occurences of sequences of 2 adjacent words (bigrams) and 3 adjacent words (trigrams). Due to this, I chose to take 10% of each text as a representative sample to look at the different features.
+
+Below you will find the word clouds representing most frequent words used in tweets (blue), blogs (green) and news (pink) after removing english stop words. Looking at the 3 plots side by side shows the difference in the vocabulary for the 3 types. 
+
+```{r wordcloud, fig.height=5, fig.width=10}
+suppressMessages(library(quanteda))
+suppressMessages(library(wordcloud))
+suppressMessages(library(ggplot2))
+
+par(mfrow=c(1, 3))
+
+#Generate and plot twitter dfm
+twitter <- readLines("final/en_US/en_US.twitter.txt", skipNul = TRUE)
+set.seed(123)
+sample <- as.logical(rbinom (n=length(twitter),size=1, prob = 0.10))
+sampleTweets <- twitter[sample]
+rm(twitter)
+
+twitterDFM <- dfm(sampleTweets, verbose = FALSE, ignoredFeatures=stopwords("english"))
+suppressMessages(wordcloud(names(topfeatures(twitterDFM, 100)), topfeatures(twitterDFM,100), colors="steelblue3"))
+
+#Generate and plot blog dfm
+blogs <- readLines("final/en_US/en_US.blogs.txt")
+sample <- as.logical(rbinom (n=length(blogs),size=1, prob = 0.10))
+sampleBlogs <- blogs[sample]
+rm(blogs)
+
+blogsDFM <- dfm(sampleBlogs, verbose = FALSE, ignoredFeatures=stopwords("english"))
+suppressMessages(wordcloud(names(topfeatures(blogsDFM, 100)), topfeatures(blogsDFM,100), colors="darkolivegreen4"))
+
+#Generate and plot news dfm
+conn <- file("final/en_US/en_US.news.txt", open = "rb")
+news <- readLines(conn, skipNul = TRUE)
+sample <- as.logical(rbinom (n=length(news),size=1, prob = 0.10))
+sampleNews <- news[sample]
+rm(news)
+rm(sample)
+
+newsDFM <- dfm(sampleNews, verbose = FALSE, ignoredFeatures=stopwords("english"))
+suppressMessages(wordcloud(names(topfeatures(newsDFM, 100)), topfeatures(newsDFM,100), colors="coral3"))
+```
+
+Finally, I also generated a frequency matrix for bigrams from each of the the texts. You can find the histogram for the bigrams for each text below.
+
+```{r bigram}
+suppressMessages(twitterBigram <- dfm(sampleTweets, ngrams=2))
+topTwitter <- data.frame(frequency=topfeatures(twitterBigram,30), row.names = NULL)
+topTwitter$ngram <- names(topfeatures(twitterBigram,30))
+
+par(mfrow=c(1,1))
+barplot(topTwitter$frequency, names.arg = topTwitter$ngram, xlab = "Bigrams", ylab = "Frequency", main="Top Twitter Bigrams", col="steelblue", cex.axis=0.3)
+
+suppressMessages(BlogBigram <- dfm(sampleBlogs, ngrams=2))
+topBlog <- data.frame(frequency=topfeatures(BlogBigram,30), row.names = NULL)
+topBlog$ngram <- names(topfeatures(BlogBigram,30))
+barplot(topBlog$frequency, names.arg = topBlog$ngram, xlab = "Bigrams", ylab = "Frequency", main="Top Blogs Bigrams", col="darkolivegreen4", cex.axis=0.3)
+
+suppressMessages(NewsBigram <- dfm(sampleNews, ngrams=2))
+topNews <- data.frame(frequency=topfeatures(NewsBigram,30), row.names = NULL)
+topNews$ngram <- names(topfeatures(NewsBigram,30))
+barplot(topNews$frequency, names.arg = topNews$ngram, xlab = "Bigrams", ylab = "Frequency", main="Top News Bigrams", col="coral3", cex.axis=0.3)
+```
+
+## Next Steps
+
+Basing on what I've been able to explore so far, here are the next steps I plan to do
+
+1. Perform additional data cleansing, particulary related to profanity filtering and removing punctuation and special characters as looking at the word clouds produced, I still need to do further clean up with the data.
+2. Related to the first item, I also plan to do more exploration using both `tm` and `quanteda` package to see which one can best cater to all the clean up that needs to be done
+3. Identify what percentage of the dataset to use to be able to cover most of the words used in the text. Right now I chose an arbitrary 10% of the data to speed up processing without putting much thought on whether this is a large enough sample size for predictions
+4. Explore smoothing techniques to account for any words not in the text, or even in the sample of text I will be using for modelling.
+5. Explore trigrams, the runtime needed to generate them and whether they are more useful for predictions compared to bigrams.
+
+
+## Appendix
+
+### Approach for reading data
+To read the files, the function `readLines(<filename>)` was initially used, however errors were consistenly encountered when loading the `en_US.news.txt` as seen below. 
+
+```{r fileerror, echo=TRUE}
+news <- readLines("final/en_US/en_US.news.txt")
+```
+
+After manually opening the file in a text editor (Notepad++), some non-text characters were found (particularly on line 77259) and the approach to read the files was modified to read lines in binary mode
+
+The code snippet below shows how files were accessed and initial information gathered.
+
+```{r loadandreadcode, eval=FALSE, echo=TRUE}
+llibrary(stringr)
+fileNames <- list.files("final/en_US", full.names=TRUE)
+totalLines <- NULL
+longestLine <- NULL
+size <- NULL
+totalWords <- NULL
+aveWords <- NULL
+for (i in 1:length(fileNames)) {
+    conn <- file(fileNames[i], open = "rb")
+    file <- readLines(conn, skipNul = TRUE)
+    totalLines <- c(totalLines, length(file))
+    longestLine <- c(longestLine, max(nchar(file)))
+    size <- c(size, round(file.size(fileNames[i])/1024/1024, 2))
+    totalWords <- c(totalWords, sum(str_count(file, '\\w+')))
+    aveWords <- c(aveWords, round(mean(str_count(file, '\\w+')), 2))
+    close(conn)
+}
+rm(file)
+filestats <- as.data.frame(cbind(fileNames, size, totalLines, longestLine, totalWords, aveWords))
+
+library(knitr)
+kable(topB, col.names = c("File Names", "Size in MB", "Total Lines", "Longest Line", "Total Words", "Average Words per Line"))
+```
+
+Code for generating DFM and plotting word clouds
+
+```{r wordcloudcode, eval=FALSE, echo=TRUE, fig.height=4, fig.width=10}
+suppressMessages(library(quanteda))
+suppressMessages(library(wordcloud))
+suppressMessages(library(ggplot2))
+
+par(mfrow=c(1, 3))
+
+#Generate and plot twitter dfm
+twitter <- readLines("final/en_US/en_US.twitter.txt", skipNul = TRUE)
+set.seed(123)
+sample <- as.logical(rbinom (n=length(twitter),size=1, prob = 0.10))
+sampleTweets <- twitter[sample]
+rm(twitter)
+
+twitterDFM <- dfm(sampleTweets, verbose = FALSE, ignoredFeatures=stopwords("english"))
+suppressMessages(wordcloud(names(topfeatures(twitterDFM, 100)), topfeatures(twitterDFM,100), colors="steelblue3"))
+
+#Generate and plot blog dfm
+blogs <- readLines("final/en_US/en_US.blogs.txt")
+sample <- as.logical(rbinom (n=length(blogs),size=1, prob = 0.10))
+sampleBlogs <- blogs[sample]
+rm(blogs)
+
+blogsDFM <- dfm(sampleBlogs, verbose = FALSE, ignoredFeatures=stopwords("english"))
+suppressMessages(wordcloud(names(topfeatures(blogsDFM, 100)), topfeatures(blogsDFM,100), colors="darkolivegreen4"))
+
+#Generate and plot news dfm
+conn <- file("final/en_US/en_US.news.txt", open = "rb")
+news <- readLines(conn, skipNul = TRUE)
+sample <- as.logical(rbinom (n=length(news),size=1, prob = 0.10))
+sampleNews <- news[sample]
+rm(news)
+rm(sample)
+
+newsDFM <- dfm(sampleNews, verbose = FALSE, ignoredFeatures=stopwords("english"))
+suppressMessages(wordcloud(names(topfeatures(newsDFM, 100)), topfeatures(newsDFM,100), colors="coral3"))
+```
+
+Code to generate and plot bigrams
+
+```{r bigramcode, echo=TRUE, eval=FALSE}
+suppressMessages(twitterBigram <- dfm(sampleTweets, ngrams=2))
+topTwitter <- data.frame(frequency=topfeatures(twitterBigram,30), row.names = NULL)
+topTwitter$ngram <- names(topfeatures(twitterBigram,30))
+
+par(mfrow=c(1,1))
+barplot(topTwitter$frequency, names.arg = topTwitter$ngram, xlab = "Bigrams", ylab = "Frequency", main="Top Twitter Bigrams", col="steelblue", cex.axis=0.3)
+
+suppressMessages(BlogBigram <- dfm(sampleBlogs, ngrams=2))
+topBlog <- data.frame(frequency=topfeatures(BlogBigram,30), row.names = NULL)
+topBlog$ngram <- names(topfeatures(BlogBigram,30))
+barplot(topBlog$frequency, names.arg = topBlog$ngram, xlab = "Bigrams", ylab = "Frequency", main="Top Blogs Bigrams", col="darkolivegreen4", cex.axis=0.3)
+
+suppressMessages(NewsBigram <- dfm(sampleNews, ngrams=2))
+topNews <- data.frame(frequency=topfeatures(NewsBigram,30), row.names = NULL)
+topNews$ngram <- names(topfeatures(NewsBigram,30))
+barplot(topNews$frequency, names.arg = topNews$ngram, xlab = "Bigrams", ylab = "Frequency", main="Top News Bigrams", col="coral3", cex.axis=0.3)
+```
