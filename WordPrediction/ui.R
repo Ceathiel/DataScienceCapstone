@@ -32,10 +32,14 @@ shinyUI(fluidPage(theme="bootstrap.css",
                     tabPanel("Word Predictions",
                              br(),
                              textInput('words', label="Input Phrase", width = "100%"),
-                             verbatimTextOutput('predictedsentence')),
+                             verbatimTextOutput('predictedsentence')
+                             ),
                     tabPanel("Application Details",
                              br(),
-                             includeMarkdown("README.md"))
+                             includeMarkdown("include.md"),
+                             h4("Top 30 Trigrams and Bigrams from the model"),
+                             plotOutput('wordcloud', width="700px", height="500px")
+                             )
         )
     )
   )

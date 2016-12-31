@@ -13,6 +13,9 @@ UnigramProb <- fread("UnigramProb.csv", header = T, sep = ",")
 BigramProb <- fread("BigramProb.csv", header = T, sep = ",")
 TrigramProb <- fread("TrigramProb.csv", header = T, sep = ",")
 
+#Create top ngrams for wordcloud
+top3 <- top_n(TrigramProb, 30, TrigramFreq)
+top2 <- top_n(BigramProb, 30, BigramFreq)
 
 #Create function for predicting next words using ngram model
 predictNextWord <- function(sentence, choices=NULL) {
@@ -62,4 +65,10 @@ shinyServer(function(input, output) {
         text <- predictNextWord(input$words) 
         paste(text, collapse = "\n")
         })
+    
+    output$wordcloud <- renderPlot({
+        par(mfrow=c(1,3))
+        wordcloud(top3$Trigram, top3$TrigramFreq, scale=c(3,.3), colors=(brewer.pal(8, 'Dark2')))
+        wordcloud(top2$Bigram, top2$BigramFreq, scale=c(3,.3), colors=(brewer.pal(8, 'Dark2')))   
+    })
 })

@@ -1,3 +1,6 @@
+### Raw script used for experimentng with different language models
+###
+
 library(quanteda)
 library(dplyr)
 
@@ -5,13 +8,10 @@ library(dplyr)
 set.seed(123)
 
 # Set sample size to be used from whole corpus
-samplesize <- .25
+samplesize <- .05
 
 # Set percent of sample to be taken for testing
-devsize <- .25
-
-# Set percent of sample to be taken for development
-testsize <- .20
+testsize <- .25
 
 # Read twitter sample
 twitter <- readLines("final/en_US/en_US.twitter.txt", skipNul = TRUE)
@@ -20,11 +20,8 @@ sampleTweets <- twitter[sample]
 #Set aside text for testing
 test <- as.logical(rbinom (n=length(sampleTweets),size=1, prob = testsize))
 testTweets <- sampleTweets[test]
-#Set aside text for training and developing model
+#Set aside text for training model
 modelTweets <- sampleTweets[!test]
-dev <- as.logical(rbinom (n=length(modelTweets),size=1, prob = devsize))
-devTweets <- modelTweets[dev]
-modelTweets <- modelTweets[!dev]
 rm(twitter)
 
 # Read blogs sample
@@ -34,11 +31,8 @@ sampleBlogs <- blogs[sample]
 #Set aside text for testing
 test <- as.logical(rbinom (n=length(sampleBlogs),size=1, prob = testsize))
 testBlogs <- sampleBlogs[test]
-#Set aside text for training and developing model
+#Set aside text for training model
 modelBlogs <- sampleBlogs[!test]
-dev <- as.logical(rbinom (n=length(modelBlogs),size=1, prob = devsize))
-devBlogs <- modelTweets[dev]
-modelBlogs <- modelBlogs[!dev]
 rm(blogs)
 
 # Read news sample
@@ -50,35 +44,31 @@ sampleNews <- news[sample]
 #Set aside text for testing
 test <- as.logical(rbinom (n=length(sampleNews),size=1, prob = testsize))
 testNews <- sampleNews[test]
-#Set aside text for training and developing model
+#Set aside text for training model
 modelNews <- sampleNews[!test]
-dev <- as.logical(rbinom (n=length(modelNews),size=1, prob = devsize))
-devNews <- modelNews[dev]
-modelNews <- modelNews[!dev]
 rm(news, conn)
 
-# Join all model, dev, and test text to separate vectors and clean up objects
+# Join all model and test text to separate vectors and clean up objects
 modelText <- c(modelTweets, modelBlogs, modelNews)
 rm(modelTweets, modelBlogs, modelNews)
-devText <- c(devTweets, devBlogs, devNews)
-rm(devTweets, devBlogs, devNews)
 testText <- c(testTweets, testBlogs, testNews)
-rm(testTweets, testBlogs, testNews)
-rm(dev, test, sample)
+
+# Write test text to file for later use
+write.table(testText, "testdata.txt", col.names = FALSE, row.names = FALSE, quote=FALSE)
+rm(testTweets, testBlogs, testNews, testText)
+rm(test, sample)
 rm(sampleTweets, sampleBlogs, sampleNews)
 
 # Remove non-ASCII characters
 modelText <- iconv(modelText, "latin1", "ASCII", sub="")
-devText <- iconv(devText, "latin1", "ASCII", sub="") 
-testText <- iconv(testText, "latin1", "ASCII", sub="") 
 
-# Tokenize into sentences, clean the data (remove numbers, punctuation and separators)
-# and add start and end of sentence markers
-# sampleSentences <- tokenize(sampleText, what="sentence", removeNumbers = TRUE, removePunct = TRUE,
-#                             removeSeparators = TRUE, simplify = TRUE)
-# sampleSentences <- paste0("<s> ", sampleSentences, " <e>")
-sampleSentences <- modelText
+# Tokenize to sentences
+sampleSentences <- tokenize(modelText, what="sentence", simplify = TRUE)
+
 rm(modelText)
+
+# Generate Unigram, Bigram and Trigram frequency using quanteda
+# Clean up of numbers, punctation and symbols are also done here
 
 # Generate Unigrams and their frequency of occurence in the corpus
 textDFM <- dfm(sampleSentences,  toLower = TRUE, removeNumbers = TRUE, removePunct = TRUE, 
@@ -95,16 +85,8 @@ textBigram <- dfm(sampleSentences,  toLower = TRUE, removeNumbers = TRUE, remove
                   removeHyphens = TRUE, what="fasterword", ngrams=2)
 BigramFreq <- data.frame(freq=colSums(textBigram))
 
-# Limit Bigrams to those with more than 1 occurence in the corpus
-BigramFreq$ngram <- rownames(BigramFreq)
-BigramFreq <- select(BigramFreq, ngram, freq) %>% filter(freq>1) %>% arrange(desc(freq))
+# Clean up DFM for Bigram
 rm(textBigram)
-
-## Extract Previous and Next words from Bigram
-BigramFreq$ngram <- gsub("_", " ", BigramFreq$ngram)
-BigramFreq$Prev <- gsub("^(\\w+|<s>) .*$", "\\1", BigramFreq$ngram)
-BigramFreq$Next <-  gsub("^.* (\\w+|<e>)$", "\\1", BigramFreq$ngram)
-format(object.size(BigramFreq), units = "Mb")
 
 #Generate Trigrams and their frequency of occurence in the corpus
 textTrigram <- dfm(sampleSentences,  toLower = TRUE, removeNumbers = TRUE, removePunct = TRUE, 
@@ -113,33 +95,59 @@ textTrigram <- dfm(sampleSentences,  toLower = TRUE, removeNumbers = TRUE, remov
 TrigramFreq <- data.frame(freq=colSums(textTrigram))
 rm(textTrigram)
 
-# Limit Trigrams to those with more than 1 occurence in the corpus
-TrigramFreq$ngram <- rownames(TrigramFreq)
-TrigramFreq <- select(TrigramFreq, ngram, freq) %>% filter(freq>1)
-
 # Divide Trigram into Bigram and Unigram
+TrigramFreq$ngram <- rownames(TrigramFreq)
+rownames(TrigramFreq) <- NULL
 TrigramFreq$ngram <- gsub("_", " ", TrigramFreq$ngram)
 TrigramFreq$Prev <- gsub("^((\\w+\\W+){1}\\w+).*$", "\\1", TrigramFreq$ngram)
 TrigramFreq$Next <-  gsub("^.* (\\w+|<e>)$", "\\1", TrigramFreq$ngram)
 format(object.size(TrigramFreq), units = "Mb")
 
-# Generate Trigram probabilities using MLE
+## Extract Previous and Next words from Bigram
+BigramFreq$ngram <- rownames(BigramFreq)
+rownames(TrigramFreq) <- NULL
+BigramFreq$ngram <- gsub("_", " ", BigramFreq$ngram)
+BigramFreq$Prev <- gsub("^(\\w+|<s>) .*$", "\\1", BigramFreq$ngram)
+BigramFreq$Next <-  gsub("^.* (\\w+|<e>)$", "\\1", BigramFreq$ngram)
+format(object.size(BigramFreq), units = "Mb")
+
+# Calculate Kneser-Ney Discount where N1 and N2 are Trigrams with count of 1 and 2
+trigramTotal <- nrow(TrigramFreq)
+n1 <- nrow(TrigramFreq[TrigramFreq$freq==1,])
+n2 <- nrow(TrigramFreq[TrigramFreq$freq==2,])
+D = n1 / (n1 + 2*n2)
+
+# Generate Trigram probabilities using MLE with and without Kneser-Ney Discount
 TrigramProb <- inner_join(TrigramFreq, BigramFreq, by=c("Prev"="ngram"))
 TrigramProb <- TrigramProb[,1:5]
-names(TrigramProb) <- c("Trigram", "TrigramFreq", "Bigram", "Next", "BigramFreq")
+names(TrigramProb) <- c("TrigramFreq", "Trigram", "Bigram", "Next", "BigramFreq")
 TrigramProb$MLEProb <- TrigramProb$TrigramFreq/TrigramProb$BigramFreq
+TrigramProb$MLEProbDiscount <- (TrigramProb$TrigramFreq-D)/TrigramProb$BigramFreq
 format(object.size(TrigramProb), units = "Mb")
+
+# Calculate Kneser-Ney Discount where N1 and N2 are Bigrams grams with count of 1 and 2
+bigramTotal <- nrow(BigramFreq)
+n1Bigram <- nrow(BigramFreq[BigramFreq$freq==1,])
+n2Bigram <- nrow(BigramFreq[BigramFreq$freq==2,])
+DBigram = n1Bigram / (n1Bigram + 2*n2Bigram)
 
 ## Generate Bigram Probabilities using MLE
 BigramProb <- inner_join(BigramFreq, WordFreq, by=c("Prev"="Word"))
-names(BigramProb) <- c("Bigram", "BigramFreq", "Prev", "Next", "PrevFreq")
+names(BigramProb) <- c("BigramFreq", "Bigram", "Prev", "Next", "PrevFreq")
 BigramProb$MLEProb <- BigramProb$BigramFreq/BigramProb$PrevFreq
+BigramProb$MLEProbDiscount <- (BigramProb$BigramFreq-DBigram)/BigramProb$PrevFreq
 format(object.size(BigramProb), units = "Mb")
+
+TrigramProb$Continuation <- paste0(gsub("^.* (\\w+)$", "\\1", TrigramProb$Bigram), " ", TrigramProb$Next)
+
+
+# Clean Up
 rm(BigramFreq, TrigramFreq)
 
+# Limit Bigrams to those with more than 1 occurence in the corpus
+BigramProb <- filter(BigramProb, BigramFreq>1)
 
-#Generate Unigram probabilities (MLE and Kneser Ney) 
-#Remove words occuring less than once in the corpus
+#Generate Unigram probabilities (MLE and Kneser Ney Continuation) 
 WordProb <- select(WordFreq, Word, freq) %>% mutate(MLEProb = freq/sum(WordFreq$freq))
 #Using Bigram Probabilities table, find the number of bigrams preceeding each word
 PrevWordCount <- group_by(BigramProb, Next) %>% summarize(PrevCount=n()) %>% arrange(desc(PrevCount))

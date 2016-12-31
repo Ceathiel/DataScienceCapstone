@@ -2,8 +2,8 @@
 
 This application was developed for the Capstone Project for the Data Science Specialization in Coursera by Johns Hopkins University
 
-You will find the shiny application code in the ff. Github link:
-https://github.com/Ceathiel/DataScienceCapstone/tree/master/WordPrediction
+The shiny application is found through this link:
+https://ceathiel.shinyapps.io/WordPrediction/
 
 #### How the word prediction is done
 
@@ -13,7 +13,7 @@ When a word is entered in the text field, the application attempts to find suita
 
 Finally, if no Trigram or Bigram match is found, it looks at Unigrams and provides a recommendation based on the computed Kneser-Ney probability for the unigram
 
-In the interest of speed, the N-gram models have been pre-processed and resulting computations are saved into cSV files which the application reads in during initialization.
+In the interest of speed, the N-gram models have been pre-processed and resulting computations are saved into CSV files which the application reads in during initialization.
 
 #### Files in the repository:
 
@@ -23,3 +23,4 @@ In the interest of speed, the N-gram models have been pre-processed and resultin
 4. BigramProb.csv - file containing the Bigram MLE probabilities computed from the training corpus
 4. TrigramProb.csv - file containing the Trigram MLE probabilities computed from the training corpus
 
+If you are interested in finding the code that generates the n-gram models, you can refer to https://github.com/Ceathiel/DataScienceCapstone
