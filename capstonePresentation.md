@@ -2,10 +2,11 @@ Word Prediction Application
 ========================================================
 author: Rhea Lucas
 date: Dec 29, 2016
-autosize: true
 font-family: arial
+width: 1600
+height: 900
 
-This presentation will provide a quick background on the application, it's usage, logic and additional references.
+This presentation will provide a quick background on the application, how to use it and how it works.
 
 About the App
 ========================================================
@@ -18,22 +19,28 @@ It was developed for the Capstone Project for the Data Science Specialization by
 
 The r codes for the application are available in the ff. repository:
 
-<https://github.com/Ceathiel/DataScienceCapstone/tree/master/WordPredictionr>
+<https://github.com/Ceathiel/DataScienceCapstone/tree/master/WordPrediction>
+
+The r codes for generating the models used for prediction along with other materials created for the capstone project is available in the ff. repository:
+
+https://github.com/Ceathiel/DataScienceCapstone
 
 ***
 
-![Caption](screen1.jpg) 
+![Word Prediction App](screen1.jpg) 
 
 Getting Started with Word Predictions
 ========================================================
 
-The application has an input text field on the "Word Predictions"" tab. After the application loads, wait until you see the "App is ready" message (about 10-20 seconds) then begin typing the phrase you want to get a prediction for. 
+The application has an input text field on the "Word Predictions" tab where you can type in. 
+
+After the application loads in your browser, wait for the "App is ready" message to show up (about 10-20 seconds), then begin typing the phrase you want to get a prediction for. 
 
 Your input phrase along with suggested next words will be shown below the textbox with about 1-2 seconds delay as you type.
 
 ***
 
-![Caption](screen2.jpg) 
+![Word Prediction App](screen2.jpg) 
 
 <small>
 Additional Notes:
@@ -44,40 +51,52 @@ Additional Notes:
 How It Works
 ========================================================
 
-### Preparing the data
+### Generating Next Word Suggestions
 
-The Word Prediction app uses an [N-gram language model] (https://en.wikipedia.org/wiki/Language_model#n-gram_models) created from samples of twitter, blog and news text provided as part of the course.
+The Word Prediction app uses an [N-gram language model] (https://en.wikipedia.org/wiki/Language_model#n-gram_models) created from samples of twitter, blog and news text taken from a corpus called [HC Corpora] (http://www.corpora.heliohost.org/). The corpus text can be downloaded [here] (https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip).
 
-Trigram, Bigram and Unigram language models were created using the [quanteda] (https://cran.r-project.org/web/packages/quanteda/vignettes/quickstart.html) package which provides functionalities for cleaning up text, generating n-grams from it and counting frequencies for each ngram.
+To generate the next word suggestions, the application uses an algorithm called [Stupid Back-Off] (http://www.aclweb.org/anthology/D07-1090.pdf) which is efficient for calculating predictions over huge datasets. 
 
-The ff. clean-up steps were done:
+The algorithm attempts to find a match on the highest order n-gram model available (4-gram for this app) and "backs off" to lower order models in case it doesn't find a match.
 
-1. Changing text to lowercase
-2. Removing non-ASCII characters
-3. Removing punctuation and symbols (i.e. #, etc)
-4. Removing numbers
-5. Removing sentences with bad words based on list downloaded [here] (http://www.bannedwordlist.com/)
+This allows us to provide next word suggestions even if we encounter an input phrase whose n-grams are not observed in the training text.
+
+***
+<center>Algorithm Flowchart 
+![Stupid Backoff logic](Wordprediction/tree.jpg)
+</center>
+
+<small>
+For the application, a 15% sample of the entire corpus was used for training the model. Using a laptop with 8 GB RAM and 2.10GHz CPU, it takes about 1.5 hrs to generate the entire model from reading in data, generating n-gram models and exporting them to csv files to be used by the application.
+</small>
 
 How It Works
 ========================================================
 
 ### Creating the Model
 
-Once data has been cleaned up, we extract the count of occurence for each unique, Trigram, Bigram and Unigram found in the text and use this for computing the maximum likelihood estimate (MLE) for each n-gram.
+<small>
+The 4-gram, Trigram, Bigram and Unigram models were created using the `dfm` function from [quanteda] (https://cran.r-project.org/web/packages/quanteda/vignettes/quickstart.html) package which provides capability for cleaning up text and extracting the unique n-grams along with their frequencies in the training corpus.
 
-For the application, a 15% sample of the entire text provided was used for training the model. Overall, it takes about 1 hr and 15 mins to generate the entire model from reading in data up to computing the MLE for each order n-gram.
+Once data has been cleaned up and we've extracted the count of occurence for unique n-grams found in the text, we compute the maximum likelihood estimate (MLE) for each n-gram using the ff. formula:
 
+<center>![MLE Formula](mle.jpg)</center>
 
-How It Works
-========================================================
+For Unigrams, Kneser-Ney Probability was also computed. As described in this [article] (http://smithamilli.com/blog/kneser-ney/), the unigram Kneser-Ney probability is the number of unique words the unigram follows divided by all bigrams.
 
-### Generating Next Word Suggestions
+***
 
-To generate the next word suggestions, the application uses an algorithm called [Stupid Back-Off] (http://www.aclweb.org/anthology/D07-1090.pdf) which is efficient for calculating predictions over huge datasets.
+Summary of Clean-up steps:
 
-When an input phrase is entered in the text field, the application attempts to find a suitable match using a Stupid Backoff algorithm where first it attempts to find suitable match from the Trigram Model with the highest maximum likelihood estimate (MLE). If no trigram match is found, it backs off to find a match in the Bigram Model, again using MLE.
+1. Changing text to lowercase
+2. Removing non-ASCII characters
+3. Removing punctuation and symbols (i.e. #, etc.)
+4. Removing numbers
+5. Removing sentences with words in the profanity list downloaded [here] (http://www.bannedwordlist.com/)
 
-Finally, if no Trigram or Bigram match is found, it looks at Unigrams and provides a recommendation based on the computed Kneser-Ney probability for the unigram.
-
-
+Additional Notes:
+* Stemming and removal of stop words from the text was not done to retain the proper context when creating the n-grams.
+* Addition of start and end of sentence markers was also skipped as the intent for the application is to be able to provide predictions even for shorter input phrases.
+* The full code for model creation may be found in the [github repo] (https://github.com/Ceathiel/DataScienceCapstone/)
+</small>
 

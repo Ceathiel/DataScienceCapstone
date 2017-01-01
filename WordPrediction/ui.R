@@ -36,9 +36,7 @@ shinyUI(fluidPage(theme="bootstrap.css",
                              ),
                     tabPanel("Application Details",
                              br(),
-                             includeMarkdown("include.md"),
-                             h4("Top 30 Trigrams and Bigrams from the model"),
-                             plotOutput('wordcloud', width="700px", height="500px")
+                             includeMarkdown("include.md")
                              )
         )
     )

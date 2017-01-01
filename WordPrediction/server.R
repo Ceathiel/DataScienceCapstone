@@ -2,7 +2,7 @@
 # This is the server logic of a Word Prediction Application
 #
 
-#Initializa libraries
+#Initialize libraries
 library(shiny)
 library(quanteda)
 library(data.table)
@@ -12,10 +12,7 @@ library(dplyr)
 UnigramProb <- fread("UnigramProb.csv", header = T, sep = ",")
 BigramProb <- fread("BigramProb.csv", header = T, sep = ",")
 TrigramProb <- fread("TrigramProb.csv", header = T, sep = ",")
-
-#Create top ngrams for wordcloud
-top3 <- top_n(TrigramProb, 30, TrigramFreq)
-top2 <- top_n(BigramProb, 30, BigramFreq)
+FourgramProb <- fread("FourgramProb.csv", header = T, sep = ",")
 
 #Create function for predicting next words using ngram model
 predictNextWord <- function(sentence, choices=NULL) {
@@ -26,36 +23,50 @@ predictNextWord <- function(sentence, choices=NULL) {
                               removeSeparators = TRUE, removeSymbols = TRUE, removeTwitter = TRUE, 
                               removeHyphens = TRUE, what="fasterword", simplify = TRUE)
     
-    #Initialize empty data frame to hold the next word predictions
-    match <- data.frame(Next=character())
-    
     #Check if entered text is valid and display a message
     if (length(sentenceToken) == 0) {
         return("App is ready. Please enter a phrase with valid characters from the alphabet in the textbox.")
+    } else {
+        #Start Predicting Next Word
+        
+        #Initialize empty data frame to hold the next word predictions
+        match <- data.frame(Next=character())
+        
+        #Attempt to match to a 4-gram if sentence has 3 or more words using MLE 
+        if (length(sentenceToken) >= 3) {
+            lastTrigram <- paste0(sentenceToken[length(sentenceToken)-2], " ",
+                                  sentenceToken[length(sentenceToken)-1], " ", 
+                                  sentenceToken[length(sentenceToken)])
+            match <- filter(FourgramProb, lastTrigram==Trigram) %>% 
+                arrange(desc(MLEProb))  %>% 
+                top_n(5, MLEProb) %>% select(Next, MLEProb)
+        }
+        
+        #If sentence has only 2 words or 4-gram match has failed, attempt to match to a Trigram using MLE 
+        if (length(sentenceToken) >= 2 | nrow(match) == 0) {
+            lastBigram <- paste0(sentenceToken[length(sentenceToken)-1], " ", sentenceToken[length(sentenceToken)])
+            match <- filter(TrigramProb, lastBigram==Bigram) %>% top_n(5, MLEProb) %>% 
+                select(Next, MLEProb) %>% mutate(MLEProb=MLEProb*0.4)
+        }
+        
+        #If sentence has only 1 word or Trigram match has failed, attempt to match to a Bigram using MLE 
+        if (length(sentenceToken) == 1 | nrow(match) == 0){
+            lastWord <- sentenceToken[length(sentenceToken)]
+            match <- filter(BigramProb, lastWord==Prev) %>%  top_n(5, MLEProb) %>%
+                select(Next, MLEProb) %>% mutate(MLEProb=MLEProb*0.4*0.4) 
+        } 
+        
+        #If Bigram match has failed, attempt to match to a Unigram using Kneser-Ney Continuation
+        if (nrow(match) == 0){
+            match <- top_n(UnigramProb, 5, KNProb) %>% select(Next, KNProb) %>% 
+                mutate(MLEProb=KNProb*0.4*0.4*0.4)
+        } 
+        
+        #Sort matches by MLE
+        match <- arrange(match, desc(MLEProb))
+        
+        return(paste0(sentence, " ", match$Next))
     }
-    
-    #Attempt to match to a Trigram if sentence has 2 or more words using MLE Probability
-    if (length(sentenceToken) >= 2) {
-        lastBigram <- paste0(sentenceToken[length(sentenceToken)-1], " ", sentenceToken[length(sentenceToken)])
-        match <- filter(TrigramProb, lastBigram==Bigram) %>% 
-            arrange(desc(MLEProb))  %>% 
-            top_n(5, MLEProb)
-    }
-    
-    #If sentence has only 1 word or Trigram match has failed, attempt to match to a Bigram using MLE Probability
-    if (length(sentenceToken) == 1 | nrow(match) == 0){
-        lastWord <- sentenceToken[length(sentenceToken)]
-        match <- filter(BigramProb, lastWord==Prev) %>% 
-            arrange(desc(MLEProb)) %>% 
-            top_n(5, MLEProb) 
-    } 
-    
-    #If Bigram match has failed, attempt to match to a Unigram using Kneser-Ney Probability
-    if (nrow(match) == 0){
-        match <- arrange(UnigramProb, desc(KNProb)) %>% top_n(5, KNProb) 
-    } 
-    
-    return(paste0(sentence, " ", match$Next))
     
 }
 

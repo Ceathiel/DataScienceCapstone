@@ -3,17 +3,19 @@ This application was developed for the Capstone Project for the Data Science Spe
 
 #### How the word prediction is done
     
-The prediction is done using an N-gram language model which is trained from samples of twitter, blog and news text provided as part of the course. Trigram, Bigram and Unigram models were used for this applicaiton.
+The Word Prediction app uses an [N-gram language model] (https://en.wikipedia.org/wiki/Language_model#n-gram_models) created from samples of twitter, blog and news text taken from a corpus called [HC Corpora] (http://www.corpora.heliohost.org/). The corpus text can be downloaded [here] (https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip).
 
-When an input phrase is entered in the text field, the application attempts to find a suitable match using a Stupid Backoff algorithm where first it attempts to find suitable match from the Trigram Model with the highest maximum likelihood estimate (MLE). If no trigram match is found, it backs off to find a match in the Bigram Model, again using MLE.
+For this application, 4-gram, Trigram, Bigram and Unigram models are used along with an algorithm called [Stupid Back-Off] (http://www.aclweb.org/anthology/D07-1090.pdf) which is efficient for calculating predictions over huge datasets.
 
-Finally, if no Trigram or Bigram match is found, it looks at Unigrams and provides a recommendation based on the computed Kneser-Ney probability for the unigram.
+The decision tree for the algortihm can be found below.
+
+![Stupid Backoff logic](tree.jpg) 
 
 In the interest of speed, the N-gram models have been pre-processed and resulting computations are saved into CSV files which the application reads in during initialization.
 
 #### Additional documentation
 
-Presentation slides fo this application may be found in:
+Presentation slides fo this application may be found in: http://rpubs.com/ceathiel/wordprediction
 
 Application code for this is available in github: 
 

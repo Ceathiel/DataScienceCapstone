@@ -3,26 +3,19 @@
 ## Prediction application
 ## LAST MODIFIED @ 12/31/2016
 ##
-## 1. Reads in sample text based on a sample size and partitions it into training
-##    and test set
-## 2. Cleans traning set. Removes non-ASCII characters, numbers, punctuation, symbols
-## 3. Tokenizes sample text into sentences and filters out sentences with profanity
-## 3. Generates document frequency matrix for unigram, bigram and trigram
+## 1. Generates document frequency matrix for unigram, bigram, trigram and 4-gram
 ##    based on training data
-## 4. Computes maximum likelihood estimate for each unigram, bigram and trigram
-## 5. Prunes bigram and trigam models to ngrams that occur more than once in text
-## 6. Saves the trigram, bigram and unigram models into CSV files that will be
-##    used by the word prediction app
+## 2. Computes maximum likelihood estimate for unigram, bigram, trigram and 4-gram
+## 3. Prunes bigram, trigam and 4-gram models to include only ngrams that occur more 
+##    than once in the text
+## 4. Saves the 4-gram, trigram, bigram and unigram models into CSV files that will 
+##    be used by the word prediction app
 ## 
 ## Input Docs:
-## Twitter text: final/en_US/en_US.twitter.txt
-## Blog text: final/en_US/en_US.blogs.txt
-## News text: final/en_US/en_US.news.txt
-## Profanity filter: swearWords.txt
+## Training data: sampleData.txt
 ##
 ## Output Docs
-## Training data: sampleData.txt
-## Test data: testdata.txt
+## 4-gram Model: WordPrediction/FourgramProb.csv
 ## Trigram Model: WordPrediction/TrigramProb.csv
 ## Bigram Model: WordPrediction/BigramProb.csv
 ## Unigram Model: WordPrediction/UnigramProb.csv
@@ -35,78 +28,10 @@ library(dplyr)
 # Set seed for reproducibility. 
 set.seed(123)
 
-# Set sample size to be used from whole corpus
-samplesize <- .20
-
-# Set percent of sample to be taken for testing
-testsize <- .25
-
-# Read twitter sample
-twitter <- readLines("final/en_US/en_US.twitter.txt", skipNul = TRUE)
-sample <- as.logical(rbinom (n=length(twitter),size=1, prob = samplesize))
-sampleTweets <- twitter[sample]
-#Set aside text for testing
-test <- as.logical(rbinom (n=length(sampleTweets),size=1, prob = testsize))
-testTweets <- sampleTweets[test]
-#Set aside text for training model
-modelTweets <- sampleTweets[!test]
-rm(twitter)
-
-# Read blogs sample
-blogs <- readLines("final/en_US/en_US.blogs.txt")
-sample <- as.logical(rbinom (n=length(blogs),size=1, prob = samplesize))
-sampleBlogs <- blogs[sample]
-#Set aside text for testing
-test <- as.logical(rbinom (n=length(sampleBlogs),size=1, prob = testsize))
-testBlogs <- sampleBlogs[test]
-#Set aside text for training model
-modelBlogs <- sampleBlogs[!test]
-rm(blogs)
-
-# Read news sample
-conn <- file("final/en_US/en_US.news.txt", open = "rb")
-news <- readLines(conn, skipNul = TRUE)
-sample <- as.logical(rbinom (n=length(news),size=1, prob = samplesize))
+# Read in sample data
+conn <- file("sampleData.txt", open = "rb")
+sampleSentences <- readLines(conn, skipNul = TRUE)
 close(conn)
-sampleNews <- news[sample]
-#Set aside text for testing
-test <- as.logical(rbinom (n=length(sampleNews),size=1, prob = testsize))
-testNews <- sampleNews[test]
-#Set aside text for training model
-modelNews <- sampleNews[!test]
-rm(news, conn)
-
-# Join all model and test text to separate vectors and clean up objects
-modelText <- c(modelTweets, modelBlogs, modelNews)
-rm(modelTweets, modelBlogs, modelNews)
-testText <- c(testTweets, testBlogs, testNews)
-
-# Write test text to file for later use
-write.table(testText, "testdata.txt", col.names = FALSE, row.names = FALSE, quote=FALSE)
-rm(testTweets, testBlogs, testNews, testText)
-rm(test, sample)
-rm(sampleTweets, sampleBlogs, sampleNews)
-
-# Remove non-ASCII characters
-modelText <- iconv(modelText, "latin1", "ASCII", sub="")
-
-# Tokenize to sentences
-sampleSentences <- tokenize(modelText, what="sentence", simplify = TRUE)
-rm(modelText)
-
-# Read in words for profanity filter
-conn <- file("swearWords.txt", open = "rb")
-profanityFilter <- readLines(conn, skipNul = TRUE)
-close(conn)
-
-# Filter out sentences with profanity
-profane <- rowSums(sapply(profanityFilter, function(x) grepl(sprintf('\\b%s\\b', x), sampleSentences)))
-sampleSentences <- sampleSentences[profane==0]
-rm(profane, profanityFilter)
-
-# Write dataset to file for later use
-write.table(sampleSentences, "sampleData.txt", col.names = FALSE, row.names = FALSE, quote=FALSE)
-
 
 # Generate Unigram, Bigram and Trigram frequency using quanteda
 # Clean up of numbers, punctation and symbols are also done here
@@ -136,6 +61,21 @@ textTrigram <- dfm(sampleSentences,  toLower = TRUE, removeNumbers = TRUE, remov
 TrigramFreq <- data.frame(freq=colSums(textTrigram))
 rm(textTrigram)
 
+#Generate 4-grams and their frequency of occurence in the corpus
+textFourgram <- dfm(sampleSentences,  toLower = TRUE, removeNumbers = TRUE, removePunct = TRUE, 
+                   removeSeparators = TRUE, removeSymbols = TRUE, removeTwitter = TRUE, 
+                   removeHyphens = TRUE, what="fasterword", ngrams=4)
+FourgramFreq <- data.frame(freq=colSums(textFourgram))
+rm(textFourgram)
+
+# Divide 4-gram into Trigram and Unigram
+FourgramFreq$ngram <- rownames(FourgramFreq)
+rownames(FourgramFreq) <- NULL
+FourgramFreq$ngram <- gsub("_", " ", FourgramFreq$ngram)
+FourgramFreq$Prev <- gsub("^((\\w+\\W+){2}\\w+).*$", "\\1", FourgramFreq$ngram)
+FourgramFreq$Next <-  gsub("^.* (\\w+|<e>)$", "\\1", FourgramFreq$ngram)
+format(object.size(FourgramFreq), units = "Mb")
+
 # Divide Trigram into Bigram and Unigram
 TrigramFreq$ngram <- rownames(TrigramFreq)
 rownames(TrigramFreq) <- NULL
@@ -152,35 +92,49 @@ BigramFreq$Prev <- gsub("^(\\w+|<s>) .*$", "\\1", BigramFreq$ngram)
 BigramFreq$Next <-  gsub("^.* (\\w+|<e>)$", "\\1", BigramFreq$ngram)
 format(object.size(BigramFreq), units = "Mb")
 
-# Calculate Kneser-Ney Discount where N1 and N2 are Trigrams with count of 1 and 2
-trigramTotal <- nrow(TrigramFreq)
-n1 <- nrow(TrigramFreq[TrigramFreq$freq==1,])
-n2 <- nrow(TrigramFreq[TrigramFreq$freq==2,])
-D = n1 / (n1 + 2*n2)
+# Generate 4-gram probabilities using MLE 
+FourgramProb <- inner_join(FourgramFreq, TrigramFreq, by=c("Prev"="ngram"))
+FourgramProb <- FourgramProb[,1:5]
+names(FourgramProb) <- c("FourgramFreq", "Fourgram", "Trigram", "Next", "TrigramFreq")
+FourgramProb$MLEProb <- FourgramProb$FourgramFreq/FourgramProb$TrigramFreq
+format(object.size(FourgramProb), units = "Mb")
 
-# Generate Trigram probabilities using MLE with and without Kneser-Ney Discount
+# Prune 4-grams to those with more than 1 occurence in the corpus
+FourgramProb <- filter(FourgramProb, FourgramFreq>1)
+
+# Write 4-gram model to file
+write.csv(FourgramProb, "WordPrediction/FourgramProb.csv", quote=FALSE)
+
+# Clean Up
+rm(FourgramFreq, FourgramProb)
+
+# Generate Trigram probabilities using MLE 
 TrigramProb <- inner_join(TrigramFreq, BigramFreq, by=c("Prev"="ngram"))
 TrigramProb <- TrigramProb[,1:5]
 names(TrigramProb) <- c("TrigramFreq", "Trigram", "Bigram", "Next", "BigramFreq")
 TrigramProb$MLEProb <- TrigramProb$TrigramFreq/TrigramProb$BigramFreq
-TrigramProb$MLEProbDiscount <- (TrigramProb$TrigramFreq-D)/TrigramProb$BigramFreq
 format(object.size(TrigramProb), units = "Mb")
 
-# Calculate Kneser-Ney Discount where N1 and N2 are Bigrams grams with count of 1 and 2
-bigramTotal <- nrow(BigramFreq)
-n1Bigram <- nrow(BigramFreq[BigramFreq$freq==1,])
-n2Bigram <- nrow(BigramFreq[BigramFreq$freq==2,])
-DBigram = n1Bigram / (n1Bigram + 2*n2Bigram)
+# Prune Trigrams to those with more than 1 occurence in the corpus
+TrigramProb <- filter(TrigramProb, TrigramFreq>1)
 
-## Generate Bigram Probabilities using MLE with and without Kneser-Ney Discount
+# Write Trigram model to file
+write.csv(TrigramProb, "WordPrediction/TrigramProb.csv", quote=FALSE)
+
+# Clean Up
+rm(TrigramFreq, TrigramProb)
+
+## Generate Bigram Probabilities using MLE
 BigramProb <- inner_join(BigramFreq, WordFreq, by=c("Prev"="Word"))
 names(BigramProb) <- c("BigramFreq", "Bigram", "Prev", "Next", "PrevFreq")
 BigramProb$MLEProb <- BigramProb$BigramFreq/BigramProb$PrevFreq
-BigramProb$MLEProbDiscount <- (BigramProb$BigramFreq-DBigram)/BigramProb$PrevFreq
 format(object.size(BigramProb), units = "Mb")
 
+# Prune Bigrams to those with more than 1 occurence in the corpus
+BigramProb <- filter(BigramProb, BigramFreq>1)
+
 # Clean Up
-rm(BigramFreq, TrigramFreq)
+rm(BigramFreq)
 
 #Generate Unigram probabilities using MLE
 WordProb <- select(WordFreq, Word, freq) %>% mutate(MLEProb = freq/sum(WordFreq$freq))
@@ -194,14 +148,11 @@ UnigramProb$KNProb <- UnigramProb$PrevCount/nrow(BigramProb)
 names(UnigramProb) <- c( "Next", "freq", "MLEProb", "PrevCount", "KNProb")
 
 #Clean Up
-rm(WordProb, WordFreq)
+rm(WordProb, WordFreq, PrevWordCount)
 
-# Prune Trigrams and Bigrams to those with more than 1 occurence in the corpus
-BigramProb <- filter(BigramProb, BigramFreq>1)
-TrigramProb <- filter(TrigramProb, TrigramFreq>1)
-
-#Write computed Ngram probabilities into files
+#Write computed Bigram and Unigram probabilities into files
 write.csv(UnigramProb, "WordPrediction/UnigramProb.csv", quote=FALSE)
 write.csv(BigramProb, "WordPrediction/BigramProb.csv", quote=FALSE)
-write.csv(TrigramProb, "WordPrediction/TrigramProb.csv", quote=FALSE)
+
+
 
