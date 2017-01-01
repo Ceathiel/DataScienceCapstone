@@ -6,8 +6,6 @@ This repository contains all materials used and created for the Capstone Project
 
 The capstone project covers the field of Natural Language Processing, particularly next word predictions. In this course we were tasked to create an application that predicts the next word given an input text.
 
-In order to come up with a final data product, 
-
 ### Repository files and directories
 
 The ff. files and directories can be found in the repository
