@@ -59,7 +59,7 @@ predictNextWord <- function(sentence, choices=NULL) {
         } 
         
         #If Bigram match has failed, if match has less than 5 results
-        if (nrow(match) < 0){
+        if (nrow(match) < 5){
             x <- top_n(UnigramProb, 5, KNProb) %>% select(Next, KNProb) %>% 
                 mutate(MLEProb=KNProb*0.4*0.4*0.4)
             match <- filter(x, !(Next %in% match$Next)) %>% bind_rows(match)

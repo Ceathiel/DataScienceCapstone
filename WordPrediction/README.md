@@ -22,5 +22,8 @@ In the interest of speed, the N-gram models have been pre-processed and resultin
 3. UnigramProb.csv - file containing the Unigram MLE and Kneser-Ney probabilities computed from the training corpus
 4. BigramProb.csv - file containing the Bigram MLE probabilities computed from the training corpus
 4. TrigramProb.csv - file containing the Trigram MLE probabilities computed from the training corpus
+5. FourgramProb.csv - file containing the Trigram MLE probabilities computed from the training corpus
+6. include.md - file used to include application details in the Shiny ui
+7. tree.jpg - decision tree diagram used for the UI
 
 If you are interested in finding the code that generates the n-gram models, you can refer to https://github.com/Ceathiel/DataScienceCapstone
