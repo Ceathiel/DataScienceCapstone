@@ -30,7 +30,7 @@ predictNextWord <- function(sentence, choices=NULL) {
         #Start Predicting Next Word
         
         #Initialize empty data frame to hold the next word predictions
-        match <- data.frame(Next=character())
+        match <- data.frame(Next=character(), MLEProb=numeric())
         
         #Attempt to match to a 4-gram if sentence has 3 or more words using MLE 
         if (length(sentenceToken) >= 3) {
@@ -42,24 +42,27 @@ predictNextWord <- function(sentence, choices=NULL) {
                 top_n(5, MLEProb) %>% select(Next, MLEProb)
         }
         
-        #If sentence has only 2 words or 4-gram match has failed, attempt to match to a Trigram using MLE 
-        if (length(sentenceToken) >= 2 | nrow(match) == 0) {
+        #If sentence has only 2 words or if match has less than 5 results
+        if (length(sentenceToken) >= 2 | nrow(match) < 5) {
             lastBigram <- paste0(sentenceToken[length(sentenceToken)-1], " ", sentenceToken[length(sentenceToken)])
-            match <- filter(TrigramProb, lastBigram==Bigram) %>% top_n(5, MLEProb) %>% 
-                select(Next, MLEProb) %>% mutate(MLEProb=MLEProb*0.4)
+            x <- filter(TrigramProb, lastBigram==Bigram) %>% top_n(5, MLEProb) %>% 
+                select(Next, MLEProb) %>% mutate(MLEProb=MLEProb*0.4) 
+            match <- filter(x, !(Next %in% match$Next)) %>% bind_rows(match)
         }
         
-        #If sentence has only 1 word or Trigram match has failed, attempt to match to a Bigram using MLE 
-        if (length(sentenceToken) == 1 | nrow(match) == 0){
+        #If sentence has only 1 word or if match has less than 5 results
+        if (length(sentenceToken) == 1 | nrow(match) < 5){
             lastWord <- sentenceToken[length(sentenceToken)]
-            match <- filter(BigramProb, lastWord==Prev) %>%  top_n(5, MLEProb) %>%
-                select(Next, MLEProb) %>% mutate(MLEProb=MLEProb*0.4*0.4) 
+            x <- filter(BigramProb, lastWord==Prev) %>%  top_n(5, MLEProb) %>%
+                select(Next, MLEProb) %>% mutate(MLEProb=MLEProb*0.4*0.4)
+            match <- filter(x, !(Next %in% match$Next)) %>% bind_rows(match)
         } 
         
-        #If Bigram match has failed, attempt to match to a Unigram using Kneser-Ney Continuation
-        if (nrow(match) == 0){
-            match <- top_n(UnigramProb, 5, KNProb) %>% select(Next, KNProb) %>% 
+        #If Bigram match has failed, if match has less than 5 results
+        if (nrow(match) < 0){
+            x <- top_n(UnigramProb, 5, KNProb) %>% select(Next, KNProb) %>% 
                 mutate(MLEProb=KNProb*0.4*0.4*0.4)
+            match <- filter(x, !(Next %in% match$Next)) %>% bind_rows(match)
         } 
         
         #Sort matches by MLE
@@ -67,7 +70,6 @@ predictNextWord <- function(sentence, choices=NULL) {
         
         return(paste0(sentence, " ", match$Next))
     }
-    
 }
 
 #Update the UI with the output of next word prediction
