@@ -4,7 +4,7 @@
 ##
 ## 1. Reads in sample text based on a sample size and partitions it into training
 ##    and test set
-## 2. Cleans training set. Removes non-ASCII characters, numbers, punctuation, symbols
+## 2. Removes non-ASCII characters from text
 ## 3. Tokenizes sample text into sentences and filters out sentences with profanity
 ## 
 ## Input Docs:

@@ -3,12 +3,13 @@
 ## Prediction application
 ## LAST MODIFIED @ 12/31/2016
 ##
-## 1. Generates document frequency matrix for unigram, bigram, trigram and 4-gram
+## 1. Cleans up text (removes numbers, punctuation and symbols)
+## 2. Generates document frequency matrix for unigram, bigram, trigram and 4-gram
 ##    based on training data
-## 2. Computes maximum likelihood estimate for unigram, bigram, trigram and 4-gram
-## 3. Prunes bigram, trigam and 4-gram models to include only ngrams that occur more 
+## 3. Computes maximum likelihood estimate for unigram, bigram, trigram and 4-gram
+## 4. Prunes bigram, trigam and 4-gram models to include only ngrams that occur more 
 ##    than once in the text
-## 4. Saves the 4-gram, trigram, bigram and unigram models into CSV files that will 
+## 5. Saves the 4-gram, trigram, bigram and unigram models into CSV files that will 
 ##    be used by the word prediction app
 ## 
 ## Input Docs:
